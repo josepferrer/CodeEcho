@@ -9,11 +9,6 @@ class PullRequest(BaseModel):
     status: str
     raw_data: Dict
     repository: str
-    last_updated: datetime
-    created_at: datetime
-
-    class Config:
-        frozen = True  # Immutable
 
     @property
     def is_finished(self) -> bool:

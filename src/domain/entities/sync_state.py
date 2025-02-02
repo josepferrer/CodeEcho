@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
+
 from ..value_objects.sync_state import RepositoryId, RateLimit
 
 

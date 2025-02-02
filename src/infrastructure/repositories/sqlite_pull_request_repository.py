@@ -1,13 +1,13 @@
-import sqlite3
-import json
 import asyncio
-from datetime import datetime
-from typing import List, Optional, Dict
-from pathlib import Path
+import json
+import sqlite3
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+from pathlib import Path
+from typing import List, Optional
 
-from ...domain.entities.pull_request import PullRequest
 from ...application.interfaces.pull_request_repository import PullRequestRepository
+from ...domain.entities.pull_request import PullRequest
 
 
 class SQLitePullRequestRepository(PullRequestRepository):

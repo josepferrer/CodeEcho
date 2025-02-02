@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
+
 from ...domain.entities.pull_request import PullRequest
+
 
 class GitHubClient(ABC):
     @abstractmethod

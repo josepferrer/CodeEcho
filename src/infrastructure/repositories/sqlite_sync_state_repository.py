@@ -1,18 +1,16 @@
-import sqlite3
-import json
-from datetime import datetime, timedelta
 import asyncio
-from typing import List, Optional
-from pathlib import Path
+import sqlite3
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import List, Optional
 
-from ...domain.entities.sync_state import SyncState
 from ...application.interfaces.sync_state_repository import SyncStateRepository
+from ...domain.entities.sync_state import SyncState
 from ...domain.value_objects.sync_state import RepositoryId, ProviderType, RateLimit
 
 
 class SQLiteSyncStateRepository(SyncStateRepository):
-
 
     def __init__(self, db_path: str):
         """
@@ -106,6 +104,21 @@ class SQLiteSyncStateRepository(SyncStateRepository):
                 return [self._row_to_sync_state(row) for row in cursor.fetchall()]
 
         return await asyncio.get_event_loop().run_in_executor(self.executor, _get)
+
+    async def get_all(self) -> List[SyncState]:
+        """Get all sync states"""
+
+        def _get_all():
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.execute("""
+                    SELECT * FROM sync_states 
+                    ORDER BY repository_owner, repository_name
+                """)
+
+                return [self._row_to_sync_state(row) for row in cursor.fetchall()]
+
+        return await asyncio.get_event_loop().run_in_executor(self.executor, _get_all)
 
     def _row_to_sync_state(self, row: sqlite3.Row) -> SyncState:
         """Convert a database row to a SyncState entity"""

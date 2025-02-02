@@ -1,9 +1,14 @@
-import aiohttp
+import logging
 from typing import List, Optional, Dict
-from datetime import datetime
+
+import aiohttp
+
+from ...application.interfaces.github_client import GitHubClient
 from ...domain.entities.pull_request import PullRequest
 from ...domain.exceptions.github_exceptions import *
-from ...application.interfaces.github_client import GitHubClient
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class GitHubClientImpl(GitHubClient):
@@ -11,8 +16,9 @@ class GitHubClientImpl(GitHubClient):
         self.token = token
         self.base_url = "https://api.github.com"
         self.headers = {
-            "Authorization": f"token {token}",
-            "Accept": "application/vnd.github.v3+json"
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
         }
 
     async def get_pull_requests(
@@ -26,7 +32,6 @@ class GitHubClientImpl(GitHubClient):
                 params = {"state": "all", "per_page": 100}
                 if page:
                     params["page"] = page
-
                 async with session.get(url, headers=self.headers, params=params) as response:
                     self._handle_response_status(response)
                     data = await response.json()
@@ -40,6 +45,7 @@ class GitHubClientImpl(GitHubClient):
         try:
             async with aiohttp.ClientSession() as session:
                 url = f"{self.base_url}/repos/{repository}/pulls/{number}"
+                logging.info(f"GET: {url}")
 
                 async with session.get(url, headers=self.headers) as response:
                     self._handle_response_status(response)
@@ -64,7 +70,7 @@ class GitHubClientImpl(GitHubClient):
         elif status == 403:
             raise GitHubAccessError("Access denied to repository")
         elif status == 404:
-            raise GitHubAccessError("Repository or pull request not found")
+            raise GitHubNotFoundException("Repository or pull request not found")
         elif status >= 500:
             raise GitHubConnectionError("GitHub service error")
         elif status != 200:
@@ -76,7 +82,5 @@ class GitHubClientImpl(GitHubClient):
             number=data["number"],
             status=data["state"],
             repository=repository,
-            raw_data=data,
-            last_updated=datetime.fromisoformat(data["updated_at"].replace("Z", "+00:00")),
-            created_at=datetime.fromisoformat(data["created_at"].replace("Z", "+00:00"))
+            raw_data=data
         )

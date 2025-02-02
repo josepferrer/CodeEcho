@@ -5,10 +5,9 @@ from aioresponses import aioresponses
 
 from src.domain.exceptions.github_exceptions import (
     GitHubAuthenticationError,
-    GitHubAccessError,
     GitHubConnectionError,
     GitHubBaseException,
-    GitHubRateLimitException
+    GitHubRateLimitException, GitHubNotFoundException
 )
 from src.infrastructure.repositories.github_client_impl import GitHubClientImpl
 
@@ -40,14 +39,13 @@ def repository():
 
 @pytest.fixture
 def unaccesible_repository():
-    return "Wallapop/Wallapop-Backend"
+    return "uber/not-access-repo"
 
 
 @pytest.mark.slow
 @pytest.mark.asyncio
 async def test_get_pull_requests_success(
         github_client,
-        base_url,
         repository
 ):
     # Execute the method
@@ -56,14 +54,13 @@ async def test_get_pull_requests_success(
     # Assertions
     assert len(result) == 100
     pr = result[0]
-    assert pr.id == '2304609627'
+    assert pr.id == '2310318265'
 
 
 @pytest.mark.slow
 @pytest.mark.asyncio
 async def test_get_pull_requests_with_page(
         github_client,
-        base_url,
         repository
 ):
     page = 20
@@ -72,14 +69,13 @@ async def test_get_pull_requests_with_page(
 
     assert len(result) == 100
     pr = result[0]
-    assert pr.id == '1824056313'
+    assert pr.id == '1829569968'
 
 
 @pytest.mark.slow
 @pytest.mark.asyncio
 async def test_get_pull_requests_with_number(
         github_client,
-        base_url,
         repository
 ):
     number = 5
@@ -93,7 +89,6 @@ async def test_get_pull_requests_with_number(
 @pytest.mark.asyncio
 async def test_get_pull_requests_authentication_error(
         github_client_fake_token,
-        base_url,
         repository
 ):
     with pytest.raises(GitHubAuthenticationError):
@@ -104,10 +99,9 @@ async def test_get_pull_requests_authentication_error(
 @pytest.mark.asyncio
 async def test_get_pull_requests_access_error(
         github_client,
-        base_url,
         unaccesible_repository
 ):
-    with pytest.raises(GitHubAccessError):
+    with pytest.raises(GitHubNotFoundException):
         await github_client.get_pull_requests(unaccesible_repository)
 
 
@@ -134,7 +128,6 @@ async def test_get_pull_requests_rate_limit(
 @pytest.mark.slow
 async def test_get_pull_request_detail_success(
         github_client,
-        base_url,
         repository
 ):
     """Test successful retrieval of a single pull request"""
@@ -152,7 +145,6 @@ async def test_get_pull_request_detail_success(
 @pytest.mark.slow
 async def test_get_pull_request_not_found(
         github_client,
-        base_url,
         repository
 ):
     """Test handling of non-existent pull request"""

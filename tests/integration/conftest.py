@@ -1,5 +1,6 @@
-import pytest
 import os
+
+import pytest
 from dotenv import load_dotenv
 
 
@@ -25,6 +26,3 @@ def github_token():
 def test_repository():
     """Repository to use for testing"""
     return "facebook/react"
-
-
-

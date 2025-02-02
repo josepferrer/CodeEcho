@@ -1,8 +1,7 @@
-import pytest
-import asyncio
 import tempfile
-from datetime import datetime, timezone
 from pathlib import Path
+
+import pytest
 
 from src.domain.entities.pull_request import PullRequest
 from src.infrastructure.repositories.sqlite_pull_request_repository import SQLitePullRequestRepository
@@ -62,6 +61,7 @@ async def test_save_and_retrieve_pr(repository, sample_pr):
     assert retrieved_pr.status == sample_pr.status
     assert retrieved_pr.raw_data["title"] == "Test PR"
 
+
 @pytest.mark.asyncio
 async def test_batch_save(repository):
     """Test batch saving of pull requests"""
@@ -85,6 +85,7 @@ async def test_batch_save(repository):
         retrieved = await repository.get_by_id(pr.id)
         assert retrieved is not None
         assert retrieved.id == pr.id
+
 
 @pytest.mark.asyncio
 async def test_updated_pr(repository, sample_pr):
@@ -115,6 +116,7 @@ async def test_updated_pr(repository, sample_pr):
     assert retirved_prs.id != open_pr.id
     assert retirved_prs.status == closed_pr.status
 
+
 @pytest.mark.asyncio
 async def test_get_open_prs(repository, sample_pr):
     """Test filtering open pull requests"""
@@ -135,6 +137,7 @@ async def test_get_open_prs(repository, sample_pr):
 
     assert len(open_prs) == 1
     assert open_prs[0].id == sample_pr.id
+
 
 @pytest.mark.asyncio
 async def test_get_get_by_repo_and_number(repository, sample_pr):

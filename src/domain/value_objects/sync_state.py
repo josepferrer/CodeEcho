@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
+
 @dataclass(frozen=True)
 class ProviderType:
     """Value Object for Provider Type"""
@@ -21,6 +22,7 @@ class ProviderType:
             return NotImplemented
         return self.value == other.value
 
+
 @dataclass(frozen=True)
 class RepositoryId:
     """Value Object for Repository ID"""
@@ -39,7 +41,7 @@ class RepositoryId:
         )
 
     def __str__(self) -> str:
-        return f"{self.provider.value}@{self.owner}/{self.name}"
+        return f"{self.owner}/{self.name}"
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, RepositoryId):
@@ -50,6 +52,7 @@ class RepositoryId:
 
     def __hash__(self) -> int:
         return hash((self.owner, self.name, self.provider.value))
+
 
 @dataclass(frozen=True)
 class RateLimit:

@@ -1,7 +1,8 @@
-import pytest
 import tempfile
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+
+import pytest
 
 from src.domain.entities.sync_state import SyncState
 from src.infrastructure.repositories.sqlite_sync_state_repository import SQLiteSyncStateRepository

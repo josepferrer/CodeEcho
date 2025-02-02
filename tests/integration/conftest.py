@@ -2,6 +2,7 @@ import os
 
 import pytest
 from dotenv import load_dotenv
+from src.infrastructure.logging.logging_config import setup_logging
 
 
 def pytest_configure(config):
@@ -22,7 +23,7 @@ def github_token():
     return os.getenv('GITHUB_TOKEN')
 
 
-@pytest.fixture
-def test_repository():
-    """Repository to use for testing"""
-    return "facebook/react"
+@pytest.fixture(scope="session", autouse=True)
+def configure_logging():
+    """Set up logging for tests."""
+    setup_logging()

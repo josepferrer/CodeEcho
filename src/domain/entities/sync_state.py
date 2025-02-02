@@ -19,7 +19,7 @@ class SyncState:
         """Factory method to create initial sync state"""
         return cls(
             repository_id=RepositoryId.from_string(repository_string, provider_type),
-            last_synced_pr=1,
+            last_synced_pr=0,
             rate_limit=None,
             synchronized=True,
             last_sync_time=None

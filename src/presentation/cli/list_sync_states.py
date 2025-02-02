@@ -8,7 +8,6 @@ from tabulate import tabulate
 from ...application.services.sync_state_service import SyncStateService
 from ...infrastructure.repositories.sqlite_sync_state_repository import SQLiteSyncStateRepository
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

@@ -8,7 +8,6 @@ from ...application.services.sync_pull_requests_service import SyncPullRequestsS
 from ...infrastructure.repositories.sqlite_pull_request_repository import SQLitePullRequestRepository
 from ...infrastructure.repositories.sqlite_sync_state_repository import SQLiteSyncStateRepository
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

@@ -7,9 +7,7 @@ from ...application.interfaces.github_client import GitHubClient
 from ...domain.entities.pull_request import PullRequest
 from ...domain.exceptions.github_exceptions import *
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 class GitHubClientImpl(GitHubClient):
     def __init__(self, token: str):

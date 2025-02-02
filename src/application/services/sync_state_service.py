@@ -1,3 +1,4 @@
+import logging
 from typing import List
 
 from ..dto.sync_state_dto import CreateSyncStateRequest, SyncStateResponse
@@ -29,11 +30,8 @@ class SyncStateService:
             request.provider_type
         )
 
-        # Set synchronization if requested
-        if request.synchronized:
-            sync_state.toggle_synchronization(True)
-
         # Save to repository
+        logging.info(sync_state)
         await self.sync_state_repository.save(sync_state)
 
         return SyncStateResponse.from_entity(sync_state)

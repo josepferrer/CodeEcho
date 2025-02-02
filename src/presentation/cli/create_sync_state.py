@@ -8,7 +8,6 @@ from ...application.dto.sync_state_dto import CreateSyncStateRequest
 from ...application.services.sync_state_service import SyncStateService
 from ...infrastructure.repositories.sqlite_sync_state_repository import SQLiteSyncStateRepository
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

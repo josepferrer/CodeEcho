@@ -7,7 +7,6 @@ from ...application.interfaces.sync_state_repository import SyncStateRepository
 from ...domain.entities.sync_state import SyncState
 from ...domain.exceptions.github_exceptions import GitHubRateLimitException, GitHubNotFoundException
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -34,11 +33,10 @@ class SyncPullRequestsService:
             repositories = await self.sync_state_repository.find_outdated_repositories_ready_to_sync(now)
 
             for repo_state in repositories:
-                logging.info(repo_state)
-                logger.error(f"Starting synchronization of  {repo_state}")
+                logger.info(f"Starting synchronization of  {repo_state}")
                 try:
                     await self._sync_repository(repo_state)
-                    logger.error(f"Successfully ended synchronization of  {repo_state}")
+                    logger.info(f"Successfully ended synchronization of  {repo_state}")
                 except Exception as e:
                     logger.error(f"Error syncing repository {repo_state.repository_id}: {e}")
                     continue
@@ -52,14 +50,12 @@ class SyncPullRequestsService:
 
         while True:
             try:
-                logger.info(f"Get remote")
                 pull_request = await self.get_remote_pull_request(now, sync_state)
-                logger.info(f"END get remote")
 
                 if pull_request:
                     await self.store_new_sync_states(pull_request, sync_state)
             except GitHubRateLimitException as e_rate_limit:  # This exception shouldn't be Github specific one
-                logger.info(f"Rate limit")
+                logger.warning(f"Rate limit")
                 await self.store_rate_limit_exceeded_state(e_rate_limit, sync_state)
                 break
             except GitHubNotFoundException as e:

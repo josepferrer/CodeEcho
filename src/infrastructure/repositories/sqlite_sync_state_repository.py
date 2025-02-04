@@ -1,79 +1,61 @@
 import asyncio
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import List, Optional
 
+from .sqlite_base_repository import SQLiteBaseRepository
+from .sqlite_config import SQLiteConfig
 from ...application.interfaces.sync_state_repository import SyncStateRepository
 from ...domain.entities.sync_state import SyncState
 from ...domain.value_objects.sync_state import RepositoryId, ProviderType, RateLimit
 
 
-class SQLiteSyncStateRepository(SyncStateRepository):
+class SQLiteSyncStateRepository(SQLiteBaseRepository, SyncStateRepository):
 
-    def __init__(self, db_path: str):
-        """
-        Initialize SQLite repository
-        :param db_path: Path to SQLite database file
-        """
-        self.db_path = Path(db_path)
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+    def __init__(self, config: SQLiteConfig):
+        super().__init__(config)
+        self._mapper = SQLiteSyncStateMapper()
 
-        # Thread pool for async operations
-        self.executor = ThreadPoolExecutor(max_workers=1)
-
-        # Initialize database
-        self._initialize_db()
-
-    def _initialize_db(self):
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS sync_states (
-                    repository_owner TEXT NOT NULL,
-                    repository_name TEXT NOT NULL,
-                    provider_type TEXT NOT NULL,
-                    last_synced_pr INTEGER NOT NULL,
-                    rate_limit_reset TIMESTAMP,
-                    synchronized BOOLEAN NOT NULL DEFAULT 0,
-                    last_sync_time TIMESTAMP,
-                    PRIMARY KEY (repository_owner, repository_name, provider_type)
-                )
-            """)
-
-            # Create indexes
-            conn.execute("""
-                CREATE INDEX IF NOT EXISTS last_sync_time 
-                ON sync_states(last_sync_time)
-            """)
-
-            conn.execute("PRAGMA journal_mode=WAL")
-            conn.commit()
+    def _create_schema(self, conn: sqlite3.Connection) -> None:
+        """Create the sync states table schema"""
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS sync_states (
+                repository_owner TEXT NOT NULL,
+                repository_name TEXT NOT NULL,
+                provider_type TEXT NOT NULL,
+                last_synced_pr INTEGER NOT NULL,
+                rate_limit_reset TIMESTAMP,
+                synchronized BOOLEAN NOT NULL DEFAULT 0,
+                last_sync_time TIMESTAMP,
+                PRIMARY KEY (repository_owner, repository_name, provider_type)
+            )
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_last_sync_time 
+            ON sync_states(last_sync_time)
+        """)
 
     async def save(self, state: SyncState) -> None:
+        """Save or update a sync state"""
+
         def _save():
-            with sqlite3.connect(self.db_path) as conn:
+            with self._get_connection() as conn:
                 conn.execute("""
                     INSERT OR REPLACE INTO sync_states 
                     (repository_owner, repository_name, provider_type, last_synced_pr,
                      rate_limit_reset, synchronized, last_sync_time)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    state.repository_id.owner,
-                    state.repository_id.name,
-                    state.repository_id.provider.value,
-                    state.last_synced_pr,
-                    state.rate_limit.reset_time.isoformat() if state.rate_limit else None,
-                    state.synchronized,
-                    state.last_sync_time.isoformat() if state.last_sync_time else None
-                ))
+                """, self._mapper.to_row(state))
 
-        await asyncio.get_event_loop().run_in_executor(self.executor, _save)
+        await self._execute_async(_save)
 
     async def get(self, repository_id: str, provider_type: str) -> Optional[SyncState]:
+        """Get sync state by repository ID and provider type"""
+
         def _get():
-            with sqlite3.connect(self.db_path) as conn:
-                conn.row_factory = sqlite3.Row
+            with self._get_connection() as conn:
                 owner, name = repository_id.split('/')
                 cursor = conn.execute("""
                     SELECT * FROM sync_states 
@@ -83,44 +65,50 @@ class SQLiteSyncStateRepository(SyncStateRepository):
                 """, (owner, name, provider_type.lower()))
 
                 row = cursor.fetchone()
-                return self._row_to_sync_state(row) if row else None
+                return self._mapper.to_entity(row) if row else None
 
-        return await asyncio.get_event_loop().run_in_executor(self.executor, _get)
+        return await self._execute_async(_get)
 
-    async def find_outdated_repositories_ready_to_sync(self, _from: datetime) -> List[SyncState]:
-        """Get sync state for all repositories that have to be sync, This means sync activated and rate limit not exceeded"""
+    async def find_outdated_repositories_ready_to_sync(self, from_date: datetime) -> List[SyncState]:
+        """Get sync states for repositories ready to sync"""
 
         def _get():
-            with sqlite3.connect(self.db_path) as conn:
-                conn.row_factory = sqlite3.Row
+            with self._get_connection() as conn:
                 cursor = conn.execute(
                     """
                     SELECT * FROM sync_states 
-                    WHERE synchronized = 1 AND (rate_limit_reset is null OR rate_limit_reset <= ?) AND (last_sync_time is null OR last_sync_time <= ?) 
+                    WHERE synchronized = 1 
+                    AND (rate_limit_reset is null OR rate_limit_reset <= ?) 
+                    AND (last_sync_time is null OR last_sync_time <= ?)
                     """,
-                    (_from.isoformat(), (_from - timedelta(hours=6)).isoformat()),
+                    (
+                        from_date.isoformat(),
+                        (from_date - timedelta(hours=6)).isoformat()
+                    )
                 )
+                return [self._mapper.to_entity(row) for row in cursor.fetchall()]
 
-                return [self._row_to_sync_state(row) for row in cursor.fetchall()]
-
-        return await asyncio.get_event_loop().run_in_executor(self.executor, _get)
+        return await self._execute_async(_get)
 
     async def get_all(self) -> List[SyncState]:
         """Get all sync states"""
 
-        def _get_all():
-            with sqlite3.connect(self.db_path) as conn:
-                conn.row_factory = sqlite3.Row
+        def _get():
+            with self._get_connection() as conn:
                 cursor = conn.execute("""
                     SELECT * FROM sync_states 
                     ORDER BY repository_owner, repository_name
                 """)
+                return [self._mapper.to_entity(row) for row in cursor.fetchall()]
 
-                return [self._row_to_sync_state(row) for row in cursor.fetchall()]
+        return await self._execute_async(_get)
 
-        return await asyncio.get_event_loop().run_in_executor(self.executor, _get_all)
 
-    def _row_to_sync_state(self, row: sqlite3.Row) -> SyncState:
+class SQLiteSyncStateMapper:
+    """Dedicated mapper class for converting between domain and persistence models"""
+
+    @staticmethod
+    def to_entity(row: sqlite3.Row) -> SyncState:
         """Convert a database row to a SyncState entity"""
         repository_id = RepositoryId(
             owner=row['repository_owner'],
@@ -143,19 +131,15 @@ class SQLiteSyncStateRepository(SyncStateRepository):
             if row['last_sync_time'] else None
         )
 
-    def cleanup(self):
-        """Cleanup resources"""
-        if hasattr(self, 'executor'):
-            self.executor.shutdown(wait=True)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.cleanup()
-
-    def __del__(self):
-        try:
-            self.cleanup()
-        except:
-            pass
+    @staticmethod
+    def to_row(entity: SyncState) -> tuple:
+        """Convert a SyncState entity to a database row"""
+        return (
+            entity.repository_id.owner,
+            entity.repository_id.name,
+            entity.repository_id.provider.value,
+            entity.last_synced_pr,
+            entity.rate_limit.reset_time.isoformat() if entity.rate_limit else None,
+            entity.synchronized,
+            entity.last_sync_time.isoformat() if entity.last_sync_time else None
+        )

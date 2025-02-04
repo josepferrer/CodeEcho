@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from src.domain.entities.sync_state import SyncState
+from src.infrastructure.repositories.sqlite_config import SQLiteConfig
 from src.infrastructure.repositories.sqlite_sync_state_repository import SQLiteSyncStateRepository
 
 
@@ -48,7 +49,13 @@ def sample_sync_state_updated():
 @pytest.fixture
 async def repository(temp_db_path):
     """Create and initialize repository"""
-    repo = SQLiteSyncStateRepository(temp_db_path)
+    config = SQLiteConfig.create(
+        db_path=Path(temp_db_path),
+        journal_mode="WAL",
+        foreign_keys=True,
+        max_workers=1
+    )
+    repo = SQLiteSyncStateRepository(config)
     yield repo
     repo.cleanup()
 

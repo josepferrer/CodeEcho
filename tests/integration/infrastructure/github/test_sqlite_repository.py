@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from src.domain.entities.pull_request import PullRequest
+from src.infrastructure.repositories.sqlite_config import SQLiteConfig
 from src.infrastructure.repositories.sqlite_pull_request_repository import SQLitePullRequestRepository
 
 
@@ -41,7 +42,13 @@ def sample_pr():
 @pytest.fixture
 async def repository(temp_db_path):
     """Create and initialize repository"""
-    repo = SQLitePullRequestRepository(temp_db_path)
+    config = SQLiteConfig.create(
+        db_path=Path(temp_db_path),
+        journal_mode="WAL",
+        foreign_keys=True,
+        max_workers=1
+    )
+    repo = SQLitePullRequestRepository(config)
     yield repo
     repo.cleanup()
 
@@ -94,27 +101,27 @@ async def test_updated_pr(repository, sample_pr):
     await repository.save(sample_pr)
     # Save a closed PR
     open_pr = PullRequest(
-        id="124",
+        id="123",
         number=77,
         status="open",
         repository="test/repo",
         raw_data={"title": "Closed PR"}
     )
     closed_pr = PullRequest(
-        id="125",
+        id="124",
         number=77,
         status="closed",
         repository="test/repo",
         raw_data={"title": "Closed PR"}
     )
-    await repository.save(closed_pr)
+    await repository.save(open_pr)
     await repository.save(closed_pr)
 
     # Get open PRs
-    retirved_prs = await repository.get_by_repo_and_number("test/repo", 77)
-    assert retirved_prs.id == closed_pr.id
-    assert retirved_prs.id != open_pr.id
-    assert retirved_prs.status == closed_pr.status
+    retrieved_prs = await repository.get_by_repo_and_number("test/repo", 77)
+    assert retrieved_prs.id == closed_pr.id
+    assert retrieved_prs.id != open_pr.id
+    assert retrieved_prs.status == closed_pr.status
 
 
 @pytest.mark.asyncio

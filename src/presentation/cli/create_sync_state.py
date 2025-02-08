@@ -1,14 +1,10 @@
 import asyncio
 import logging
-from pathlib import Path
 
 import click
 
-from src.infrastructure.config.application_config import ApplicationConfig
-from src.infrastructure.config.dependency_container import DependencyContainer
+from src.presentation.cli.base_cli import Cli
 from ...application.dto.sync_state_dto import CreateSyncStateRequest
-from ...application.services.sync_state_service import SyncStateService
-from ...infrastructure.repositories.sqlite_sync_state_repository import SQLiteSyncStateRepository
 
 logger = logging.getLogger(__name__)
 
@@ -43,15 +39,10 @@ def create_sync_state(
     REPOSITORY should be in the format "owner/repo"
     """
     try:
-        # Validate repository format
-        if '/' not in repository:
-            raise click.BadParameter(
-                'Repository must be in format "owner/repo"'
-            )
+        Cli.parse_repository(repository)
 
         # Initialize components
-        config = ApplicationConfig(base_data=db_path)
-        container = DependencyContainer(config)
+        container = Cli.service_container(db_path=db_path)
         service = container.sync_state_service
 
         # Create request

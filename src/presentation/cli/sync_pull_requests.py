@@ -6,6 +6,7 @@ import click
 from src.infrastructure.config.application_config import ApplicationConfig
 from src.infrastructure.config.dependency_container import DependencyContainer
 from src.infrastructure.repositories.github_client_impl import GitHubClientImpl
+from src.presentation.cli.base_cli import Cli
 from ...application.services.sync_pull_requests_service import SyncPullRequestsService
 from ...infrastructure.repositories.sqlite_pull_request_repository import SQLitePullRequestRepository
 from ...infrastructure.repositories.sqlite_sync_state_repository import SQLiteSyncStateRepository
@@ -25,8 +26,7 @@ def sync_pull_requests(db_path: str, github_token: str):
     try:
 
         # Initialize components
-        config = ApplicationConfig(github_token=github_token ,base_data=db_path)
-        container = DependencyContainer(config)
+        container = Cli.service_container(db_path=db_path, github_token=github_token)
         service = container.sync_service
 
         # Run sync

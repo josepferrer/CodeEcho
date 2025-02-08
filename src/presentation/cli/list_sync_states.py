@@ -5,8 +5,10 @@ from datetime import datetime
 import click
 from tabulate import tabulate
 
+from src.infrastructure.config.dependency_container import DependencyContainer
 from ...application.services.sync_state_service import SyncStateService
 from ...infrastructure.repositories.sqlite_sync_state_repository import SQLiteSyncStateRepository
+from src.infrastructure.config.application_config import ApplicationConfig
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +21,6 @@ def format_datetime(dt: datetime) -> str:
 @click.option(
     '--db-path',
     type=click.Path(exists=True),
-    default='data/sync.db',
     help='Path to the SQLite database'
 )
 @click.option(
@@ -32,8 +33,9 @@ def list_sync_states(db_path: str, format: str):
     """List all configured repositories for synchronization."""
     try:
         # Initialize components
-        sync_repo = SQLiteSyncStateRepository(db_path)
-        service = SyncStateService(sync_repo)
+        config = ApplicationConfig(base_data=db_path)
+        container = DependencyContainer(config)
+        service = container.sync_state_service
 
         # Get all sync states
         sync_states = asyncio.run(service.list_all())

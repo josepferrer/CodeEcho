@@ -14,7 +14,8 @@ class SQLiteConfig:
     @classmethod
     def create(cls, db_path: Union[str, Path], **kwargs) -> 'SQLiteConfig':
         path = Path(db_path) if isinstance(db_path, str) else db_path
-        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.parent.exists():
+            path.parent.mkdir(parents=True, exist_ok=True)
         return cls(db_path=path, **kwargs)
 
 

@@ -3,6 +3,8 @@ import logging
 
 import click
 
+from src.infrastructure.config.application_config import ApplicationConfig
+from src.infrastructure.config.dependency_container import DependencyContainer
 from src.infrastructure.repositories.github_client_impl import GitHubClientImpl
 from ...application.services.sync_pull_requests_service import SyncPullRequestsService
 from ...infrastructure.repositories.sqlite_pull_request_repository import SQLitePullRequestRepository
@@ -12,19 +14,20 @@ logger = logging.getLogger(__name__)
 
 
 @click.command()
-@click.option('--sync-db', default='data/sync_state.db', help='Sync state database path')
-@click.option('--pr-db', default='data/pull_requests.db', help='Pull requests database path')
+@click.option(
+    '--db-path',
+    type=click.Path(exists=True),
+    help='Path to the SQLite database'
+)
 @click.option('--github-token', envvar='GITHUB_TOKEN', required=True, help='GitHub API token')
-def sync_pull_requests(sync_db: str, pr_db: str, github_token: str):
+def sync_pull_requests(db_path: str, github_token: str):
     """Synchronize pull requests from configured repositories"""
     try:
-        # Initialize repositories and client
-        sync_repo = SQLiteSyncStateRepository(sync_db)
-        pr_repo = SQLitePullRequestRepository(pr_db)
-        github_client = GitHubClientImpl(github_token)
 
-        # Create service
-        service = SyncPullRequestsService(sync_repo, github_client, pr_repo)
+        # Initialize components
+        config = ApplicationConfig(github_token=github_token ,base_data=db_path)
+        container = DependencyContainer(config)
+        service = container.sync_service
 
         # Run sync
         logger.info("Starting pull requests synchronization...")

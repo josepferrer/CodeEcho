@@ -4,6 +4,8 @@ from pathlib import Path
 
 import click
 
+from src.infrastructure.config.application_config import ApplicationConfig
+from src.infrastructure.config.dependency_container import DependencyContainer
 from ...application.dto.sync_state_dto import CreateSyncStateRequest
 from ...application.services.sync_state_service import SyncStateService
 from ...infrastructure.repositories.sqlite_sync_state_repository import SQLiteSyncStateRepository
@@ -26,8 +28,7 @@ logger = logging.getLogger(__name__)
 )
 @click.option(
     '--db-path',
-    type=click.Path(),
-    default='data/sync.db',
+    type=click.Path(exists=True),
     help='Path to the SQLite database'
 )
 def create_sync_state(
@@ -48,12 +49,10 @@ def create_sync_state(
                 'Repository must be in format "owner/repo"'
             )
 
-        # Ensure database directory exists
-        Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-
         # Initialize components
-        sync_repo = SQLiteSyncStateRepository(db_path)
-        service = SyncStateService(sync_repo)
+        config = ApplicationConfig(base_data=db_path)
+        container = DependencyContainer(config)
+        service = container.sync_state_service
 
         # Create request
         request = CreateSyncStateRequest(

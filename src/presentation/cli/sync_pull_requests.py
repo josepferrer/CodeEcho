@@ -3,13 +3,7 @@ import logging
 
 import click
 
-from src.infrastructure.config.application_config import ApplicationConfig
-from src.infrastructure.config.dependency_container import DependencyContainer
-from src.infrastructure.repositories.github_client_impl import GitHubClientImpl
 from src.presentation.cli.base_cli import Cli
-from ...application.services.sync_pull_requests_service import SyncPullRequestsService
-from ...infrastructure.repositories.sqlite_pull_request_repository import SQLitePullRequestRepository
-from ...infrastructure.repositories.sqlite_sync_state_repository import SQLiteSyncStateRepository
 
 logger = logging.getLogger(__name__)
 

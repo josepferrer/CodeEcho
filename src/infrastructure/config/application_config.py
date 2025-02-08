@@ -10,7 +10,7 @@ class ApplicationConfig:
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             handlers=[
                          # logging.StreamHandler(sys.stdout),
-                         logging.FileHandler(base_data + "/app.log"),
+                         logging.FileHandler(self.base_data + "/app.log"),
                      ]
         )
 

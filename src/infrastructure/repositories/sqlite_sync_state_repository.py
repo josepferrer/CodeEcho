@@ -83,7 +83,7 @@ class SQLiteSyncStateRepository(SQLiteBaseRepository, SyncStateRepository):
                     """,
                     (
                         from_date.isoformat(),
-                        (from_date - timedelta(hours=6)).isoformat()
+                        from_date.isoformat()
                     )
                 )
                 return [self._mapper.to_entity(row) for row in cursor.fetchall()]

@@ -52,8 +52,8 @@ class SyncPullRequestsService(BaseService):
 
     async def _sync_repository(self, sync_state: SyncState) -> None:
         """Synchronize pull requests for a specific repository"""
-
-        while True:
+        last_pull_request = await self.github_client.get_last_pull_request_number(str(sync_state.repository_id))
+        while last_pull_request.number >= sync_state.last_synced_pr:
             try:
                 pull_request = await self.get_remote_pull_request(sync_state)
 
@@ -72,8 +72,8 @@ class SyncPullRequestsService(BaseService):
                 await self.store_rate_limit_exceeded_state(e_rate_limit, sync_state)
                 break
             except GitHubNotFoundException as e:
-                logger.info(f"No more info on remote repository {sync_state.repository_id}")
-                break
+                logger.info(f"Pull request number {sync_state.last_synced_pr} not exist in repository {sync_state.repository_id}")
+                sync_state.next_pull_request(datetime.now(timezone.utc))
             except Exception as e:
                 logger.error(f" {sync_state.repository_id}", exc_info=True)
                 break

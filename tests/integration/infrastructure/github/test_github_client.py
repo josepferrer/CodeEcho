@@ -54,7 +54,8 @@ async def test_get_pull_requests_success(
     # Assertions
     assert len(result) == 100
     pr = result[0]
-    assert pr.id == '2310318265'
+    assert pr.number == 1
+    assert pr.id == '6001916'
 
 
 @pytest.mark.slow
@@ -69,7 +70,8 @@ async def test_get_pull_requests_with_page(
 
     assert len(result) == 100
     pr = result[0]
-    assert pr.id == '1829569968'
+    assert pr.number == 3544
+    assert pr.id == '32180052'
 
 
 @pytest.mark.slow
@@ -113,7 +115,7 @@ async def test_get_pull_requests_rate_limit(
 ):
     """Test handling of rate limit errors"""
     with aioresponses() as m:
-        url = f"{base_url}/repos/{repository}/pulls?page=1&per_page=100&state=all"
+        url = f"{base_url}/repos/{repository}/pulls?direction=asc&page=1&per_page=100&sort=created&state=all"
         headers = {
             'X-RateLimit-Remaining': '0',
             'X-RateLimit-Reset': str(int((datetime.datetime.now(datetime.timezone.utc).timestamp() + 3600)))
@@ -139,6 +141,30 @@ async def test_get_pull_request_detail_success(
     assert result.number == pr_number
     assert result.status == 'closed'
     assert result.repository == repository
+
+
+@pytest.mark.asyncio
+@pytest.mark.slow
+async def test_get_last_pull_request_number_success(
+        github_client,
+        repository
+):
+    """Test successful retrieval of last pr number"""
+
+    result = await github_client.get_last_pull_request_number(repository)
+
+    assert result.number > 32410 # max pr number known at the moment
+
+@pytest.mark.asyncio
+@pytest.mark.slow
+async def test_get_last_pull_request_number_no_exist(
+        github_client
+):
+    """Test successful retrieval of last pr number"""
+
+    result = await github_client.get_last_pull_request_number("josepferrer/ansible-aws-kinesis-agent")
+
+    assert result is None
 
 
 @pytest.mark.asyncio

@@ -27,7 +27,7 @@ class GitHubClientImpl(GitHubClient):
         try:
             async with aiohttp.ClientSession() as session:
                 url = f"{self.base_url}/repos/{repository}/pulls"
-                params = {"state": "all", "per_page": 100}
+                params = {"state": "all", "sort": "created", "direction": "asc", "per_page": 100}
                 if page:
                     params["page"] = page
                 async with session.get(url, headers=self.headers, params=params) as response:
@@ -53,9 +53,26 @@ class GitHubClientImpl(GitHubClient):
 
         except aiohttp.ClientError as e:
             raise GitHubConnectionError(f"Connection error: {str(e)}")
-        except Exception as e: #TODO: Esto es nuevo y no tengo claro que nos haga falta
-            logger.exception(f"Some error: {str(e)}")
-            raise e
+
+    async def get_last_pull_request_number(self, repository: str) -> PullRequest:
+        """Get a specific pull request by number"""
+        try:
+            async with aiohttp.ClientSession() as session:
+                url = f"{self.base_url}/repos/{repository}/pulls?state=all&sort=created&direction=desc&per_page=1"
+                params = {"state": "all", "sort": "created", "direction": "desc", "per_page": 1}
+                logging.info(f"GET: {url}")
+
+                async with session.get(url, headers=self.headers, params=params) as response:
+                    self._handle_response_status(response)
+                    data = await response.json()
+
+                    if data:  # Check if the list is not empty
+                        return self._create_pull_request(repository, data[0])
+                    else:
+                        return None
+
+        except aiohttp.ClientError as e:
+            raise GitHubConnectionError(f"Connection error: {str(e)}")
 
     def _handle_response_status(self, response: aiohttp.ClientResponse) -> None:
         """Handle API response status and raise appropriate exceptions."""
@@ -71,7 +88,7 @@ class GitHubClientImpl(GitHubClient):
         elif status == 403:
             raise GitHubAccessError("Access denied to repository")
         elif status == 404:
-            raise GitHubNotFoundException("Repository or pull request not found")
+            raise GitHubNotFoundException(f"Repository or pull request not found: {response.url} ")
         elif status >= 500:
             raise GitHubConnectionError("GitHub service error")
         elif status != 200:

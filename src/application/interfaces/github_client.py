@@ -12,3 +12,7 @@ class GitHubClient(ABC):
     @abstractmethod
     async def get_pull_request(self, repository: str, number: int) -> PullRequest:
         pass
+
+    @abstractmethod
+    async def get_last_pull_request_number(self, repository: str) -> PullRequest:
+        pass

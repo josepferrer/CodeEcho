@@ -3,7 +3,7 @@ from abc import ABC
 import click
 
 from src.infrastructure.config.application_config import ApplicationConfig
-from src.infrastructure.config.dependency_container import DependencyContainer
+from src.infrastructure.di.dependency_container import DependencyContainer
 
 
 class Cli(ABC):

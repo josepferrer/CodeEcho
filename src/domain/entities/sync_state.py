@@ -25,6 +25,9 @@ class SyncState:
             last_sync_time=None
         )
 
+    def get_next_pull_request(self) -> int:
+        return self.last_synced_pr + 1
+
     def next_pull_request(self, last_update: datetime) -> int:
         """Get next pull request number and update state"""
         if not self.synchronized:

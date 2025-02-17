@@ -53,6 +53,9 @@ class GitHubClientImpl(GitHubClient):
 
         except aiohttp.ClientError as e:
             raise GitHubConnectionError(f"Connection error: {str(e)}")
+        except Exception as e: #TODO: Esto es nuevo y no tengo claro que nos haga falta
+            logger.exception(f"Some error: {str(e)}")
+            raise e
 
     def _handle_response_status(self, response: aiohttp.ClientResponse) -> None:
         """Handle API response status and raise appropriate exceptions."""

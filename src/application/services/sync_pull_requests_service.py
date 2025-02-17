@@ -1,22 +1,28 @@
 import logging
 from datetime import datetime, timezone
+from typing import Callable, Optional
 
+from .base_service import BaseService
+from ..events.event_bus import EventBus
 from ...application.interfaces.github_client import GitHubClient
 from ...application.interfaces.pull_request_repository import PullRequestRepository
 from ...application.interfaces.sync_state_repository import SyncStateRepository
 from ...domain.entities.sync_state import SyncState
+from ...domain.events.pull_request_synced import PullRequestSynced
 from ...domain.exceptions.github_exceptions import GitHubRateLimitException, GitHubNotFoundException
 
 logger = logging.getLogger(__name__)
 
 
-class SyncPullRequestsService:
+class SyncPullRequestsService(BaseService):
     def __init__(
             self,
             sync_state_repository: SyncStateRepository,
             github_client: GitHubClient,
-            pull_request_repository: PullRequestRepository
+            pull_request_repository: PullRequestRepository,
+            event_bus: EventBus
     ):
+        super().__init__(event_bus)
         self.sync_state_repository = sync_state_repository
         self.github_client = github_client
         self.pull_request_repository = pull_request_repository
@@ -46,20 +52,30 @@ class SyncPullRequestsService:
 
     async def _sync_repository(self, sync_state: SyncState) -> None:
         """Synchronize pull requests for a specific repository"""
-        now = datetime.now(timezone.utc)
 
         while True:
             try:
-                pull_request = await self.get_remote_pull_request(now, sync_state)
+                pull_request = await self.get_remote_pull_request(sync_state)
 
                 if pull_request:
                     await self.store_new_sync_states(pull_request, sync_state)
-            except GitHubRateLimitException as e_rate_limit:  # This exception shouldn't be Github specific one
+                    pr_synced_event = PullRequestSynced(
+                        id=pull_request.id,
+                        number=pull_request.number,
+                        status=pull_request.status,
+                        raw_data=pull_request.raw_data,
+                        repository=pull_request.repository
+                    )
+                    await self._event_bus.publish(pr_synced_event)
+            except GitHubRateLimitException as e_rate_limit:  # TODO: This exception shouldn't be Github specific one
                 logger.warning(f"Rate limit")
                 await self.store_rate_limit_exceeded_state(e_rate_limit, sync_state)
                 break
             except GitHubNotFoundException as e:
                 logger.info(f"No more info on remote repository {sync_state.repository_id}")
+                break
+            except Exception as e:
+                logger.error(f" {sync_state.repository_id}", exc_info=True)
                 break
 
     async def store_rate_limit_exceeded_state(self, e_rate_limit, sync_state):
@@ -67,12 +83,14 @@ class SyncPullRequestsService:
         await self.sync_state_repository.save(sync_state)
 
     async def store_new_sync_states(self, pull_request, sync_state):
+        now = datetime.now(timezone.utc)
+        sync_state.next_pull_request(now)
         await self.pull_request_repository.save(pull_request)
         await self.sync_state_repository.save(sync_state)
 
-    async def get_remote_pull_request(self, now, sync_state):
+    async def get_remote_pull_request(self, sync_state):
         pull_request = await self.github_client.get_pull_request(
             str(sync_state.repository_id),
-            sync_state.next_pull_request(now)
+            sync_state.get_next_pull_request()
         )
         return pull_request

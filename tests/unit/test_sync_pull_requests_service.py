@@ -7,30 +7,27 @@ import logging
 from src.application.services.sync_pull_requests_service import SyncPullRequestsService
 from src.domain.entities.pull_request import PullRequest
 from src.domain.entities.sync_state import SyncState
-from src.domain.exceptions.github_exceptions import GitHubNotFoundException
+from src.domain.exceptions.github_exceptions import GitHubNotFoundException, GitHubRateLimitException
 from src.domain.value_objects.sync_state import RepositoryId, ProviderType
+from src.infrastructure.event_bus.event_bus_provider import EventBusProvider
 
 logger = logging.getLogger(__name__)
 
 @pytest.fixture
 def mock_sync_state_repo():
     repo = AsyncMock()
-    #repo.find_outdated_repositories_ready_to_sync = AsyncMock()
-    #repo.save = AsyncMock()
     return repo
 
 
 @pytest.fixture
 def mock_github_client():
     client = AsyncMock()
-    #client.get_pull_requests = AsyncMock()
     return client
 
 
 @pytest.fixture
 def mock_pr_repo():
     repo = AsyncMock()
-    #repo.save_batch = AsyncMock()
     return repo
 
 
@@ -70,7 +67,7 @@ def sample_pull_requests():
 
 @pytest.fixture
 def sample_pull_request():
-    PullRequest(
+    return PullRequest(
         id="1",
         number=101,
         status="open",
@@ -78,18 +75,33 @@ def sample_pull_request():
         raw_data={"title": "Test PR 1"}
     )
 
+@pytest.fixture
+def sample_pull_request2():
+    return PullRequest(
+        id="2",
+        number=102,
+        status="closed",
+        repository="test/repo",
+        raw_data={"title": "Test PR 2"}
+    )
+
 
 @pytest.fixture
-def service(mock_sync_state_repo, mock_github_client, mock_pr_repo):
+def event_bus(mock_sync_state_repo, mock_github_client, mock_pr_repo):
+    return EventBusProvider.get_instance()
+
+@pytest.fixture
+def service(mock_sync_state_repo, mock_github_client, mock_pr_repo, event_bus):
     return SyncPullRequestsService(
         mock_sync_state_repo,
         mock_github_client,
-        mock_pr_repo
+        mock_pr_repo,
+        event_bus
     )
 
 
 @pytest.mark.asyncio
-async def test_sync_one_repository_one_pr(
+async def test_sync_one_pr(
         service,
         mock_sync_state_repo,
         mock_github_client,
@@ -98,10 +110,11 @@ async def test_sync_one_repository_one_pr(
         sample_pull_request
 ):
     # Setup
+    not_found_exception = GitHubNotFoundException("GitHub API rate limit exceeded")
     mock_sync_state_repo.find_outdated_repositories_ready_to_sync.return_value = [sample_sync_state]
     mock_github_client.get_pull_request.side_effect = [
-        [sample_pull_request],
-        GitHubNotFoundException("GitHub API rate limit exceeded"),
+        sample_pull_request,
+        not_found_exception,
     ]
 
     # Execute
@@ -110,11 +123,38 @@ async def test_sync_one_repository_one_pr(
     # Verify
     mock_sync_state_repo.find_outdated_repositories_ready_to_sync.assert_called_once()
     assert mock_github_client.get_pull_request.call_count == 2
-    sample_sync_state.last_synced_pr=444
-    mock_sync_state_repo.save.assert_called_once_with(
-        sample_sync_state
-    )
+    assert sample_sync_state.last_synced_pr == 101
 
+@pytest.mark.asyncio
+async def test_sync_two_pr_and_reach_rate_limit(
+        service,
+        mock_sync_state_repo,
+        mock_github_client,
+        mock_pr_repo,
+        sample_sync_state,
+        sample_pull_request,
+        sample_pull_request2
+):
+    # Setup
+    now = datetime.now(timezone.utc)
+    one_our_later = now + timedelta(hours=1)
+    rate_limit_exception = GitHubRateLimitException(int(one_our_later.timestamp()))
+    mock_sync_state_repo.find_outdated_repositories_ready_to_sync.return_value = [sample_sync_state]
+    mock_github_client.get_pull_request.side_effect = [
+        sample_pull_request,
+        sample_pull_request2,
+        rate_limit_exception,
+    ]
+
+    # Execute
+    await service.sync_repositories()
+
+    # Verify
+    mock_sync_state_repo.find_outdated_repositories_ready_to_sync.assert_called_once()
+    assert mock_github_client.get_pull_request.call_count == 3
+    assert sample_sync_state.last_synced_pr == 102
+    assert sample_sync_state.rate_limit.is_exceeded(now)
+    assert sample_sync_state.rate_limit.reset_time.replace(microsecond=0) == one_our_later.replace(microsecond=0)
 
 @pytest.mark.asyncio
 async def test_sync_repositories_with_error(
@@ -127,11 +167,12 @@ async def test_sync_repositories_with_error(
     mock_sync_state_repo.find_outdated_repositories_ready_to_sync.return_value = [
         sample_sync_state
     ]
-    mock_github_client.get_pull_requests.side_effect = Exception("API Error")
+    mock_github_client.get_pull_request.side_effect = [Exception("API Error")]
 
     # Execute
     await service.sync_repositories()
 
     # Verify service continues despite error
     mock_sync_state_repo.find_outdated_repositories_ready_to_sync.assert_called_once()
-    mock_github_client.get_pull_requests.assert_called_once()
+    mock_github_client.get_pull_request.assert_called_once()
+    assert sample_sync_state.last_synced_pr == 100

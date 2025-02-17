@@ -6,7 +6,7 @@ from src.application.services.sync_pull_requests_service import SyncPullRequests
 from src.application.services.sync_state_service import SyncStateService
 from src.domain.events.pull_request_synced import PullRequestSynced
 from src.infrastructure.config.application_config import ApplicationConfig
-from src.infrastructure.event_bus.in_memory_event_bus import InMemoryEventBus
+from src.infrastructure.event_bus.event_bus_provider import EventBusProvider
 from src.infrastructure.repositories.github_client_impl import GitHubClientImpl
 from src.infrastructure.repositories.sqlite_config import SQLiteConfig
 from src.infrastructure.repositories.sqlite_pull_request_repository import SQLitePullRequestRepository
@@ -28,10 +28,9 @@ class DependencyContainer:
         # API Clients
         self.github_client = GitHubClientImpl(token=config.github_token)
 
-        self.event_bus  = InMemoryEventBus()
-        self.event_bus.subscribe(PullRequestSynced, PullRequestSyncedHandler.handle) # no hauria de funcionar així
+        self.event_bus  = EventBusProvider.get_instance()
 
         # Services
         self.sync_service = SyncPullRequestsService(self.sync_state_repository, self.github_client,
                                                     self.pull_request_repository, self.event_bus)
-        self.sync_state_service = SyncStateService(self.sync_state_repository)
+        self.sync_state_service = SyncStateService(self.sync_state_repository, self.event_bus)

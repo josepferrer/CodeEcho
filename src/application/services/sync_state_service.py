@@ -1,13 +1,17 @@
 import logging
 from typing import List
 
+from .base_service import BaseService
 from ..dto.sync_state_dto import CreateSyncStateRequest, SyncStateResponse
+from ..events.event_bus import EventBus
 from ...application.interfaces.sync_state_repository import SyncStateRepository
 from ...domain.entities.sync_state import SyncState
 
 
-class SyncStateService:
-    def __init__(self, sync_state_repository: SyncStateRepository):
+class SyncStateService(BaseService):
+    def __init__(self, sync_state_repository: SyncStateRepository,
+            event_bus: EventBus):
+        super().__init__(event_bus)
         self.sync_state_repository = sync_state_repository
 
     async def create(self, request: CreateSyncStateRequest) -> SyncStateResponse:

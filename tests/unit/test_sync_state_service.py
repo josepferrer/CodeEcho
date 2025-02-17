@@ -1,9 +1,7 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from src.application.dtos.sync_state_dto import CreateSyncStateRequest
 
-from src.application.services.sync_state_service import CreateSyncStateService
 from src.domain.entities.sync_state import SyncState
 
 
@@ -17,7 +15,7 @@ def mock_sync_state_repository():
 
 @pytest.fixture
 def service(mock_sync_state_repository):
-    return CreateSyncStateService(mock_sync_state_repository)
+    return SyncStateService(mock_sync_state_repository)
 
 
 @pytest.mark.asyncio

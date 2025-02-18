@@ -11,6 +11,7 @@ from src.infrastructure.repositories.github_client_impl import GitHubClientImpl
 from src.infrastructure.repositories.sqlite_config import SQLiteConfig
 from src.infrastructure.repositories.sqlite_pull_request_repository import SQLitePullRequestRepository
 from src.infrastructure.repositories.sqlite_sync_state_repository import SQLiteSyncStateRepository
+from src.presentation.cli.tqdm_progress_reporter import TqdmProgressReporter
 
 
 class DependencyContainer:
@@ -30,7 +31,10 @@ class DependencyContainer:
 
         self.event_bus  = EventBusProvider.get_instance()
 
+        self.progress_reporter = TqdmProgressReporter()
+
+
         # Services
         self.sync_service = SyncPullRequestsService(self.sync_state_repository, self.github_client,
-                                                    self.pull_request_repository, self.event_bus)
+                                                    self.pull_request_repository, self.event_bus, self.progress_reporter)
         self.sync_state_service = SyncStateService(self.sync_state_repository, self.event_bus)

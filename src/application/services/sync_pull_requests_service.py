@@ -4,6 +4,7 @@ from typing import Callable, Optional
 
 from .base_service import BaseService
 from ..events.event_bus import EventBus
+from ..interfaces.progress_reporter import ProgressReporter, ProgressState
 from ...application.interfaces.github_client import GitHubClient
 from ...application.interfaces.pull_request_repository import PullRequestRepository
 from ...application.interfaces.sync_state_repository import SyncStateRepository
@@ -20,12 +21,14 @@ class SyncPullRequestsService(BaseService):
             sync_state_repository: SyncStateRepository,
             github_client: GitHubClient,
             pull_request_repository: PullRequestRepository,
-            event_bus: EventBus
+            event_bus: EventBus,
+            progress_reporter: Optional[ProgressReporter] = None
     ):
         super().__init__(event_bus)
         self.sync_state_repository = sync_state_repository
         self.github_client = github_client
         self.pull_request_repository = pull_request_repository
+        self._progress_reporter = progress_reporter
 
     async def sync_repositories(self) -> None:
         """
@@ -67,6 +70,13 @@ class SyncPullRequestsService(BaseService):
                         repository=pull_request.repository
                     )
                     await self._event_bus.publish(pr_synced_event)
+                    if self._progress_reporter:
+                        self._progress_reporter.report_progress(ProgressState(
+                            repository=pull_request.repository,
+                            current=pull_request.number,
+                            total=last_pull_request.number,
+                            message=f"Syncing PR #{pull_request.number}"
+                        ))
             except GitHubRateLimitException as e_rate_limit:  # TODO: This exception shouldn't be Github specific one
                 logger.warning(f"Rate limit")
                 await self.store_rate_limit_exceeded_state(e_rate_limit, sync_state)

@@ -75,7 +75,7 @@ class SyncPullRequestsService(BaseService):
                             repository=pull_request.repository,
                             current=pull_request.number,
                             total=last_pull_request.number,
-                            message=f"Syncing PR #{pull_request.number}"
+                            message=f"Syncing PR #{pull_request.number} repo {pull_request.repository}"
                         ))
             except GitHubRateLimitException as e_rate_limit:  # TODO: This exception shouldn't be Github specific one
                 logger.warning(f"Rate limit")

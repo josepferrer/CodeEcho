@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 class PullRequestSyncedHandler:
     """Handler for PullRequestSynced event."""
 
-    @staticmethod
-    def handle(event: PullRequestSynced):
+    async def handle(event: PullRequestSynced):
         logger.debug(f"Processing PR sync event: {event.repository} PR#{event.number} raw data: {event.raw_data} ")
         # Aquí podrías guardar datos en una base de datos o realizar otra acción.

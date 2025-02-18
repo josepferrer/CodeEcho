@@ -18,6 +18,6 @@ class EventBus(ABC):
         pass
 
     @abstractmethod
-    def publish(self, event: Event):
+    async def publish(self, event: Event):
         """Publica un evento en el bus."""
         pass

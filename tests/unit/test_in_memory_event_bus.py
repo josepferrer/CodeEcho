@@ -86,6 +86,18 @@ class TestInMemoryEventBus:
         return FailingEventHandler()
 
     @pytest.mark.asyncio
+    async def test_subscribe_registers_handler(
+            self,
+            event_bus: InMemoryEventBus,
+            test_handler: TestEventHandler
+    ):
+        """Test that handler is correctly registered"""
+        event_bus.subscribe(TestEvent, test_handler.handle)
+
+        assert TestEvent in event_bus._handlers
+        assert test_handler.handle in event_bus._handlers[TestEvent]
+
+    @pytest.mark.asyncio
     async def test_subscribe_and_publish_event(
             self,
             event_bus: InMemoryEventBus,
